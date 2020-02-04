@@ -4,16 +4,10 @@ import MapView from 'react-native-maps';
 import { Polyline, Marker } from "react-native-maps";
 import * as Permissions from 'expo-permissions';
 import Constants from 'expo-constants';
-import { Icon, TopNavigation, TopNavigationAction, Spinner } from '@ui-kitten/components';
+import { Icon, TopNavigation, TopNavigationAction } from '@ui-kitten/components';
 import axios from "axios";
 
 const locations = require('../../location.json');
-
-const Loading = () => (
-	<View style={{justifyContent: 'center', alignItems: 'center', flex: 1}}>
-    	<Spinner size='medium' />
-    </View>
-);
 
 const MyStatusBar = () => (
 	<View style={{
@@ -43,13 +37,13 @@ class RiwayatPickup extends React.Component{
            longitude: 107.602210,
         },
         routeForMap: [],
+        summary: '',
         region: {
 		  latitude: -6.917840,
 		  longitude: 107.660492,
 		  latitudeDelta: 0.0922,
 		  longitudeDelta: 0.0421,
-		},
-		isLoading: true
+		}
 	}
 
 	async componentDidMount(){
@@ -83,28 +77,24 @@ class RiwayatPickup extends React.Component{
 	    let to_long = parseFloat(this.state.finishLocation.longitude)
 	    // we will save all Polyline coordinates in this array
 	    let routeCoordinates = [];
-	    axios.get(`https://route.ls.hereapi.com/routing/7.2/calculateroute.json?apiKey=eF6ofksmF3MMfyeHi96K0Qf8P6DMZyZhEEnsxBLmTYo&waypoint0=geo!${from_lat},${from_long}&waypoint1=geo!${to_lat},${to_long}&mode=fastest;car;traffic:disabled`)
+	    axios.get(`https://route.ls.hereapi.com/routing/7.2/calculateroute.json?apiKey=eF6ofksmF3MMfyeHi96K0Qf8P6DMZyZhEEnsxBLmTYo&waypoint0=geo!${from_lat},${from_long}&waypoint1=geo!${to_lat},${to_long}&mode=fastest;car;traffic:disabled&legAttributes=shape`)
 	    	.then(res => {
-	    		// console.log(res.data.response.route[0].leg[0].maneuver)
-	    		res.data.response.route[0].leg[0].maneuver.map(m => {
-	    			// let latlong = m.split(',');
-	    			// console.log(latlong);
-	    			const { latitude, longitude } = m.position;
+	    		res.data.response.route[0].leg[0].shape.map(m => {
+	    			let latlong = m.split(',');
+	    			let latitude = parseFloat(latlong[0]);
+		            let longitude = parseFloat(latlong[1]);
 	    			routeCoordinates.push({latitude: latitude, longitude: longitude});
 	    		});
+
 	    		this.setState({
 		            routeForMap: routeCoordinates,
 		            // here we can access route summary which will show us how long does it take to pass the route, distance etc.
-		            // summary: res.data.response.route[0].summary,
+		            summary: res.data.response.route[0].summary.text,
 		            // NOTE just add this 'isLoading' field now, I'll explain it later
 		            isLoading: false,
 		        })
 	    	})
-	    	.catch(err => {
-	    		console.log(err.response);
-	    		this.setState({ isLoading: false });
-	    		alert("Terdapat kesalahan");
-	    	});
+	    	.catch(err => console.log(err.response));
 	}
 
 	BackAction = () => (
@@ -113,28 +103,29 @@ class RiwayatPickup extends React.Component{
 
 
 	render(){
-		const { routeForMap, isLoading } = this.state;
+		const { routeForMap, summary } = this.state;
+		console.log(summary);
 		return(
 			<View style={{flex: 1}}>
 				<MyStatusBar />
 				<TopNavigation
 				    leftControl={this.BackAction()}
-				    title='Thank You'
+				    title='Sudah Sesuai Jalur'
 				    alignment='center'
 				    titleStyle={{fontFamily: 'open-sans-bold', color: '#FFF'}}
 				    style={{backgroundColor: 'rgb(240, 132, 0)'}}						    
 				/>
-				{ isLoading ? <Loading /> : 
-					<MapView region={this.state.region} style={{flex: 1}}>
-					  <Polyline coordinates={this.state.routeForMap} strokeWidth={7} strokeColor="red" geodesic={true}/>
-					  <Marker 
-					  	coordinate={{latitude: this.state.startingLocation.latitude, longitude: this.state.startingLocation.longitude}} 
-					  	title="Starting location"
-					  	image={require('../../assets/motorcycle.png')}
-					  />
-					  <Marker coordinate={{latitude: this.state.finishLocation.latitude, longitude: this.state.finishLocation.longitude}} title="Finishlocation"/>
-					</MapView> }
-			</View> 
+				<MapView region={this.state.region} style={{flex: 1}}>
+				  <Polyline coordinates={this.state.routeForMap} strokeWidth={7} strokeColor="red" geodesic={true} />
+				  <Marker 
+				  	coordinate={{latitude: this.state.startingLocation.latitude, longitude: this.state.startingLocation.longitude}} 
+				  	title="Starting location"
+				  	image={require('../../assets/motorcycle.png')}
+				  />
+				  <Marker coordinate={{latitude: this.state.finishLocation.latitude, longitude: this.state.finishLocation.longitude}} title="Finishlocation"/>
+				</MapView>
+				<Text>{this.state.summary}</Text>
+			</View>
 		);
 	}
 }
